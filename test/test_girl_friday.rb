@@ -140,7 +140,7 @@ class TestGirlFriday < MiniTest::Unit::TestCase
     end
   end
 
-  def test_should_persist_with_redis_connection_pool
+  def test_should_persist_with_redis_connection_pool_slow
     begin
       require 'redis'
       require 'connection_pool'
@@ -163,6 +163,38 @@ class TestGirlFriday < MiniTest::Unit::TestCase
 
     async_test do |cb|
       queue = GirlFriday::WorkQueue.new('test', :size => 2, :store => GirlFriday::Store::Redis, :store_config => [{ :redis => redis }]) do |msg|
+        incr.call
+        cb.call if count == total
+      end
+      total.times do
+        queue.push(:text => 'foo')
+      end
+    end
+  end
+
+  def test_should_persist_with_redis_connection_pool_fast
+    begin
+      require 'redis'
+      require 'connection_pool'
+      redis_pool = ConnectionPool.new(:size => 5, :timeout => 5){ Redis.new }
+      redis_pool.flushdb
+    rescue LoadError
+      return puts "Skipping redis test, 'redis' gem not found: #{$!.message}"
+    rescue Errno::ECONNREFUSED
+      return puts 'Skipping redis test, not running locally'
+    end
+
+    mutex = Mutex.new
+    total = 100
+    count = 0
+    incr = Proc.new do
+      mutex.synchronize do
+        count += 1
+      end
+    end
+
+    async_test do |cb|
+      queue = GirlFriday::WorkQueue.new('test', :size => 2, :store => GirlFriday::Store::Redis, :store_config => [{ :pool => redis_pool }]) do |msg|
         incr.call
         cb.call if count == total
       end

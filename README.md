@@ -47,7 +47,13 @@ In your Rails app, create a `config/initializers/girl_friday.rb` which defines y
 
     require 'connection_pool'
     redis_pool = ConnectionPool.new(:size => 5, :timeout => 5){ Redis.new }
-    CLEAN_FILTER_QUEUE =GirlFriday::WorkQueue.new(:clean_filter, :store => GirlFriday::Store::Redis, :store_config => [{ :redis => redis_pool}]) do |msg|
+    CLEAN_FILTER_QUEUE =GirlFriday::WorkQueue.new(:clean_filter, :store => GirlFriday::Store::Redis, :store_config => [{ :redis => redis_pool }]) do |msg|
+      Filter.clean(msg)
+    end
+
+    # or pass in the pool param for faster processing
+    redis_pool = ConnectionPool.new(:size => 5, :timeout => 5){ Redis.new }
+    CLEAN_FILTER_QUEUE =GirlFriday::WorkQueue.new(:clean_filter, :store => GirlFriday::Store::Redis, :store_config => [{ :pool => redis_pool }]) do |msg|
       Filter.clean(msg)
     end
 

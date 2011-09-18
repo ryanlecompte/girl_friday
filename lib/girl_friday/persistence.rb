@@ -28,17 +28,17 @@ module GirlFriday
 
       def push(work)
         val = Marshal.dump(work)
-        redis.rpush(@key, val)
+        redis{ |r| r.rpush(@key, val) }
       end
       alias_method :<<, :push
 
       def pop
-        val = redis.lpop(@key)
+        val = redis{ |r| r.lpop(@key) }
         Marshal.load(val) if val
       end
 
       def size
-        redis.llen(@key)
+        redis{ |r| r.llen(@key) }
       end
 
       private
@@ -48,7 +48,18 @@ module GirlFriday
       end
 
       def redis
+        @pool = if @opts.first && @opts.first[:pool]
+          @opts.first.delete(:pool)
+        end
         @redis ||= (@opts.delete(:redis) || ::Redis.connect(*@opts))
+
+        if @pool
+          @pool.with do |pooled|
+            yield pooled
+          end
+        else
+          yield @redis
+        end
       end
     end
   end
