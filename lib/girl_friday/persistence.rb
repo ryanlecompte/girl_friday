@@ -51,13 +51,13 @@ module GirlFriday
         @pool = if @opts.first && @opts.first[:pool]
           @opts.first.delete(:pool)
         end
-        @redis ||= (@opts.delete(:redis) || ::Redis.connect(*@opts))
 
         if @pool
           @pool.with do |pooled|
             yield pooled
           end
         else
+          @redis ||= (@opts.delete(:redis) || ::Redis.connect(*@opts))
           yield @redis
         end
       end
